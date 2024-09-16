@@ -95,6 +95,8 @@ contract Deployer_M2 is Script, Test {
     uint32 REWARDS_COORDINATOR_ACTIVATION_DELAY;
     uint32 REWARDS_COORDINATOR_CALCULATION_INTERVAL_SECONDS;
     uint32 REWARDS_COORDINATOR_GLOBAL_OPERATOR_COMMISSION_BIPS;
+    uint32 REWARDS_COORDINATOR_OPERATOR_SET_GENESIS_REWARDS_TIMESTAMP;
+    uint32 REWARDS_COORDINATOR_OPERATOR_SET_MAX_RETROACTIVE_LENGTH;
 
     // one week in blocks -- 50400
     uint32 STRATEGY_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS;
@@ -133,6 +135,12 @@ contract Deployer_M2 is Script, Test {
         );
         REWARDS_COORDINATOR_GLOBAL_OPERATOR_COMMISSION_BIPS = uint32(
             stdJson.readUint(config_data, ".rewardsCoordinator.global_operator_commission_bips")
+        );
+        REWARDS_COORDINATOR_OPERATOR_SET_GENESIS_REWARDS_TIMESTAMP = uint32(
+            stdJson.readUint(config_data, ".rewardsCoordinator.OPERATOR_SET_GENESIS_REWARDS_TIMESTAMP")
+        );
+        REWARDS_COORDINATOR_OPERATOR_SET_MAX_RETROACTIVE_LENGTH = uint32(
+            stdJson.readUint(config_data, ".rewardsCoordinator.OPERATOR_SET_MAX_RETROACTIVE_LENGTH")
         );
 
         STRATEGY_MANAGER_INIT_WITHDRAWAL_DELAY_BLOCKS = uint32(
@@ -207,9 +215,9 @@ contract Deployer_M2 is Script, Test {
         eigenPodBeacon = new UpgradeableBeacon(address(eigenPodImplementation));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        delegationImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager);
-        strategyManagerImplementation = new StrategyManager(delegation, eigenPodManager, slasher);
-        avsDirectoryImplementation = new AVSDirectory(delegation, strategyManager);
+        delegationImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager, avsDirectory);
+        strategyManagerImplementation = new StrategyManager(delegation, eigenPodManager, slasher, avsDirectory);
+        avsDirectoryImplementation = new AVSDirectory(delegation);
         slasherImplementation = new Slasher(strategyManager, delegation);
         eigenPodManagerImplementation = new EigenPodManager(
             ethPOSDeposit,
@@ -221,11 +229,14 @@ contract Deployer_M2 is Script, Test {
         rewardsCoordinatorImplementation = new RewardsCoordinator(
             delegation,
             strategyManager,
+            avsDirectory,
             REWARDS_COORDINATOR_CALCULATION_INTERVAL_SECONDS,
             REWARDS_COORDINATOR_MAX_REWARDS_DURATION,
             REWARDS_COORDINATOR_MAX_RETROACTIVE_LENGTH,
             REWARDS_COORDINATOR_MAX_FUTURE_LENGTH,
-            REWARDS_COORDINATOR_GENESIS_REWARDS_TIMESTAMP
+            REWARDS_COORDINATOR_GENESIS_REWARDS_TIMESTAMP,
+            REWARDS_COORDINATOR_OPERATOR_SET_GENESIS_REWARDS_TIMESTAMP,
+            REWARDS_COORDINATOR_OPERATOR_SET_MAX_RETROACTIVE_LENGTH
         );
 
         // Third, upgrade the proxy contracts to use the correct implementation contracts and initialize them.

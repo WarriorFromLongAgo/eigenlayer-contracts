@@ -256,8 +256,8 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         eigenPodBeacon = new UpgradeableBeacon(address(eigenPodImplementation));
 
         // Second, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager);
-        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher);
+        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager, avsDirectory);
+        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher, avsDirectory);
         slasherImplementation = new Slasher(strategyManager, delegationManager);
         eigenPodManagerImplementation = new EigenPodManager(
             ethPOSDeposit,
@@ -399,8 +399,8 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         );
 
         // First, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager);
-        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher);
+        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager, avsDirectory);
+        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher, avsDirectory);
         slasherImplementation = new Slasher(strategyManager, delegationManager);
         eigenPodManagerImplementation = new EigenPodManager(
             ethPOSDeposit,
@@ -409,12 +409,7 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
             slasher,
             delegationManager
         );
-<<<<<<< HEAD
         avsDirectoryImplementation = new AVSDirectory(delegationManager);
-=======
-        delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(eigenPodManager);
-        avsDirectoryImplementation = new AVSDirectory(delegationManager, strategyManager);
->>>>>>> d7c6f3fe (Feat/operator sets (#579))
 
         // Second, upgrade the proxy contracts to point to the implementations
         // DelegationManager
@@ -498,8 +493,8 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         );
 
         // First, deploy the *implementation* contracts, using the *proxy contracts* as inputs
-        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager);
-        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher);
+        delegationManagerImplementation = new DelegationManager(strategyManager, slasher, eigenPodManager, avsDirectory);
+        strategyManagerImplementation = new StrategyManager(delegationManager, eigenPodManager, slasher, avsDirectory);
         slasherImplementation = new Slasher(strategyManager, delegationManager);
         eigenPodManagerImplementation = new EigenPodManager(
             ethPOSDeposit,
@@ -508,8 +503,7 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
             slasher,
             delegationManager
         );
-        delayedWithdrawalRouterImplementation = new DelayedWithdrawalRouter(eigenPodManager);
-        avsDirectoryImplementation = new AVSDirectory(delegationManager, strategyManager);
+        avsDirectoryImplementation = new AVSDirectory(delegationManager);
 
         // Second, upgrade the proxy contracts to point to the implementations
         // DelegationManager

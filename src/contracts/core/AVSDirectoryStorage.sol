@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.12;
 
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 import "../interfaces/IAVSDirectory.sol";
-import "../interfaces/IDelegationManager.sol";
+import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 abstract contract AVSDirectoryStorage is IAVSDirectory {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
@@ -17,15 +22,17 @@ abstract contract AVSDirectoryStorage is IAVSDirectory {
     bytes32 public constant OPERATOR_SET_REGISTRATION_TYPEHASH =
         keccak256("OperatorSetRegistration(address avs,uint32[] operatorSetIds,bytes32 salt,uint256 expiry)");
 
-    /// @notice The EIP-712 typehash for the `StandbyParams` struct used by the contract
-    bytes32 public constant OPERATOR_STANDBY_UPDATE =
-        keccak256("OperatorStandbyUpdate(StandbyParam[] standbyParams,bytes32 salt,uint256 expiry)");
-    
+    /// @notice The EIP-712 typehash for the `OperatorSetMembership` struct used by the contract
+    bytes32 public constant OPERATOR_SET_FORCE_DEREGISTRATION_TYPEHASH =
+        keccak256("OperatorSetForceDeregistration(address avs,uint32[] operatorSetIds,bytes32 salt,uint256 expiry)");
+
+    /// @notice The EIP-712 typehash for the `MagnitudeAdjustments` struct used by the contract
+    bytes32 public constant MAGNITUDE_ADJUSTMENT_TYPEHASH = keccak256(
+        "MagnitudeAdjustments(address operator,MagnitudeAdjustment(address strategy, OperatorSet(address avs, uint32 operatorSetId)[], uint64[] magnitudeDiffs)[],bytes32 salt,uint256 expiry)"
+    );
+
     /// @notice The DelegationManager contract for EigenLayer
     IDelegationManager public immutable delegation;
-
-    /// @notice The StrategyManager contract for EigenLayer
-    IStrategyManager public immutable strategyManager;
 
     /**
      * @notice Original EIP-712 Domain separator for this contract.
@@ -34,28 +41,50 @@ abstract contract AVSDirectoryStorage is IAVSDirectory {
      */
     bytes32 internal _DOMAIN_SEPARATOR;
 
-    /// @notice Mapping: AVS => operator => enum of operator status to the AVS
+    /// @notice Mapping: avs => operator => OperatorAVSRegistrationStatus struct
+    /// @dev This storage will be deprecated once M2 based deregistration is deprecated.
     mapping(address => mapping(address => OperatorAVSRegistrationStatus)) public avsOperatorStatus;
 
-    /// @notice Mapping: operator => 32-byte salt => whether or not the salt has already been used by the operator.
-    /// @dev Salt is used in the `registerOperatorToAVS` and `registerOperatorToOperatorSet` function.
+    /// @notice Mapping: operator => salt => Whether the salt has been used or not.
     mapping(address => mapping(bytes32 => bool)) public operatorSaltIsSpent;
 
-    /// @notice Mapping: AVS => whether or not the AVS uses operator set
+    /// @notice Mapping: avs => Whether it is a an operator set AVS or not.
     mapping(address => bool) public isOperatorSetAVS;
 
-    /// @notice Mapping: avs => operator => operatorSetID => whether the operator is registered for the operator set
-    mapping(address => mapping(address => mapping(uint32 => bool))) public isOperatorInOperatorSet;
+    /// @notice Mapping: avs => operatorSetId => Whether or not an operator set is valid.
+    mapping(address => mapping(uint32 => bool)) public isOperatorSet;
 
-    /// @notice Mapping: avs => operator => number of operator sets the operator is registered for the AVS
-    mapping(address => mapping(address => uint256)) public operatorAVSOperatorSetCount;
+    /// @notice Mapping: operator => List of operator sets that operator is registered to.
+    /// @dev Each item is formatted as such: bytes32(abi.encodePacked(avs, uint96(operatorSetId)))
+    mapping(address => EnumerableSet.Bytes32Set) internal _operatorSetsMemberOf;
 
-    /// @notice Mapping: avs = operator => operatorSetId => Whether the given operator set in standby mode or not
-    mapping(address => mapping(address => mapping(uint32 => bool))) public onStandby;
+    /// @notice Mapping: operatorSet => List of operators that are registered to the operatorSet
+    /// @dev Each key is formatted as such: bytes32(abi.encodePacked(avs, uint96(operatorSetId)))
+    mapping(bytes32 => EnumerableSet.AddressSet) internal _operatorSetMembers;
 
-    constructor(IDelegationManager _delegation, IStrategyManager _strategyManager) {
+    /// @notice Mapping: operator => avs => operatorSetId => operator registration status
+    mapping(address => mapping(address => mapping(uint32 => OperatorSetRegistrationStatus))) public operatorSetStatus;
+
+    /// @notice Mapping: operator => strategy => checkpointed totalMagnitude
+    /// Note that totalMagnitude is monotonically decreasing and only gets updated upon slashing
+    mapping(address => mapping(IStrategy => Checkpoints.History)) internal _totalMagnitudeUpdate;
+
+    /// @notice Mapping: operator => strategy => operatorSet (encoded) => checkpointed magnitude
+    mapping(address => mapping(IStrategy => mapping(bytes32 => Checkpoints.History))) internal _magnitudeUpdate;
+
+    /// @notice Mapping: operator => strategy => OperatorMagnitudeInfo to keep track of info regarding pending magnitude allocations.
+    mapping(address => mapping(IStrategy => OperatorMagnitudeInfo)) public operatorMagnitudeInfo;
+
+    /// @notice Mapping: operator => strategy => PendingFreeMagnitude[] to keep track of pending free magnitude from deallocations
+    mapping(address => mapping(IStrategy => PendingFreeMagnitude[])) internal _pendingFreeMagnitude;
+
+    /// @notice Mapping: operator => strategy => operatorSet (encoded) => list of queuedDeallocation indices
+    mapping(address => mapping(IStrategy => mapping(bytes32 => uint256[]))) internal _queuedDeallocationIndices;
+
+    constructor(
+        IDelegationManager _delegation
+    ) {
         delegation = _delegation;
-        strategyManager = _strategyManager;
     }
 
     /**
@@ -63,5 +92,5 @@ abstract contract AVSDirectoryStorage is IAVSDirectory {
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[43] private __gap;
+    uint256[35] private __gap;
 }
