@@ -588,18 +588,10 @@ contract ExistingDeploymentParser is Script, Test {
             strategyManager.paused() == STRATEGY_MANAGER_INIT_PAUSED_STATUS,
             "strategyManager: init paused status set incorrectly"
         );
-        if (block.chainid == 1) {
-            require(
-                strategyManager.strategyWhitelister() == address(strategyFactory),
-                "strategyManager: strategyWhitelister not set correctly"
-            );
-        } else if (block.chainid == 17000) {
-            // On holesky, for ease of whitelisting we set to executorMultisig
-            // require(
-            //     strategyManager.strategyWhitelister() == executorMultisig,
-            //     "strategyManager: strategyWhitelister not set correctly"
-            // );    
-        }
+        require(
+            strategyManager.strategyWhitelister() == address(strategyFactory),
+            "strategyManager: strategyWhitelister not set correctly"
+        );
         // EigenPodManager
         require(
             eigenPodManager.pauserRegistry() == eigenLayerPauserReg,
