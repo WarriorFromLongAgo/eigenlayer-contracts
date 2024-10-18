@@ -27,7 +27,7 @@ interface IPermissionController is IPermissionControllerErrors, IPermissionContr
      * @notice Checks if a given admin can call a function on behalf of an account
      * @param account The account to check
      * @param caller The address to check if it can call on behalf of the account
-     * @return true if the admin can call a function on behalf of the account, false otherwise
+     * @return true if the caller can call on behalf of the account, false otherwise
      */
     function canCall(address account, address caller) external returns (bool);
 
